@@ -30,12 +30,21 @@
     <ClCompile Include="textures.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="cubes.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="vertex.glsl">
       <Filter>Source Files\shader</Filter>
     </None>
     <None Include="fragment.glsl">
+      <Filter>Source Files\shader</Filter>
+    </None>
+    <None Include="shader\cubevertex.glsl">
+      <Filter>Source Files\shader</Filter>
+    </None>
+    <None Include="cubefragment.glsl">
       <Filter>Source Files\shader</Filter>
     </None>
   </ItemGroup>
