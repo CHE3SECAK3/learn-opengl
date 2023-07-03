@@ -14,14 +14,30 @@
 #define ASPECT_RATIO SCREEN_WIDTH / SCREEN_HEIGHT
 #define PI 3.141592653f
 
-
 typedef unsigned char BYTE;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 int processInput(GLFWwindow* window);
+void mouse_callback(GLFWwindow* window, double xpos, double ypos);
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
+float clip(float value, float offset, float min, float max);
+
+glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f),
+	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f),
+	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
+
+float deltaTime = 0.0f, lastFrame = 0.0f;
+float cameraSpeed = 3.0f;
+float lastX = SCREEN_WIDTH / 2, lastY = SCREEN_HEIGHT / 2;
+
+glm::vec3 direction = glm::vec3(0.0f);
+float pitch = 0.0f, yaw = 0.0f;
+
+float fov = 45.0f;
 
 int main() {
 
 #pragma region SETUP
+
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -34,6 +50,11 @@ int main() {
 
 	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetScrollCallback(window, scroll_callback);
+
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -137,29 +158,44 @@ int main() {
 
 #pragma endregion
 
-#pragma region TRANSFORMATION
+	#pragma region TRANSFORMATION
 	glm::mat4 model, view, projection;
-	view = projection = glm::mat4(1.0f);
 
-	view = glm::translate(view, glm::vec3(0.0f, 0.0f, -3.0f));
-	projection = glm::perspective(glm::radians(45.0f), ASPECT_RATIO, 0.1f, 100.0f);
 
-	shader.setMat4("view", view);
-	shader.setMat4("projection", projection);
+#pragma endregion
 
+	#pragma region CAMERA
+
+	//glm::vec3 camera = glm::vec3(0.0f, 0.0f, 3.0f);
+	//glm::vec3 cameraTarget = glm::vec3(0.0f);
+	//glm::vec3 cameraPositiveZ = glm::normalize(camera - cameraTarget); // vector in direction of CAMERA'S positive z-axis (camera is pointed towards the negative z-axis)
+	//glm::vec3 cameraUp = glm::vec3(0.0f, 0.0f, 1.0f);
+	//glm::vec3 cameraRight = glm::cross(cameraUp, cameraPositiveZ);
+	//glm::vec3 cameraRight = glm::cross(cameraUp, cameraPositiveZ);
+	
 #pragma endregion
 
 #pragma region RENDER LOOP
 
-	float ratio = 0.0f;
-	double startTime = glfwGetTime();
+	const float startTime = glfwGetTime();
+	float timeElapsed, currentFrame;
+
 	float rotateRate = 1.0f;
 	int numCubes = sizeof(cubePositions) / sizeof(glm::vec3);
 	float rotationOffset = 2 * PI / numCubes;
-	float timeElapsed;
 
+	float radius, camX, camZ;
+
+	float ratio = 0.0f;
 	shader.setFloat("ratio", ratio);
 	while (!glfwWindowShouldClose(window)) {
+
+		currentFrame = glfwGetTime();
+		deltaTime = currentFrame - lastFrame;
+		lastFrame = currentFrame;
+
+		timeElapsed = currentFrame - startTime;
+
 		int process = processInput(window);
 		if (process == 1) {
 			ratio += 0.001f;
@@ -170,12 +206,24 @@ int main() {
 			shader.setFloat("ratio", (ratio = std::max(ratio, 0.0f)));
 		}
 
-		timeElapsed = (float)(glfwGetTime() - startTime);
+
+		radius = 10.0f;
+		camX = cos(timeElapsed) * radius;
+		camZ = sin(timeElapsed) * radius;
+		view = glm::mat4(1.0f);
+		//view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f), cameraUp); //rotating camera
+
+		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
+		projection = glm::perspective(glm::radians(fov), ASPECT_RATIO, 0.1f, 100.0f);
+
+		shader.setMat4("view", view);
+		shader.setMat4("projection", projection);
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		glBindVertexArray(VAO);
+
 		for (int i = 0; i < numCubes; i++) {
 			model = glm::mat4(1.0f);
 			model = glm::translate(model, cubePositions[i]);
@@ -207,19 +255,49 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 	glViewport(0, 0, width, height);
 }
 
+void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
+	float xOffset = xpos - lastX;
+	float yOffset = lastY - ypos; //screen y-axis is reversed
+
+	lastX = xpos;
+	lastY = ypos;
+
+	const float sens = 0.075f;
+	xOffset *= sens;
+	yOffset *= sens;
+
+	yaw += xOffset;
+	pitch = clip(pitch, yOffset, -89.0f, 89.0f);
+
+	direction.y = sin(glm::radians(pitch));
+	direction.x = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
+	direction.z = cos(glm::radians(pitch)) * -cos(glm::radians(yaw));
+	cameraFront = glm::normalize(direction);
+}
+
+float clip(float pitch, float offset, float min, float max) {
+	float sum = pitch + offset;
+	return sum < min ? min : sum > max ? max : sum;
+}
+
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+	fov = clip(fov, -2 * (float)yoffset, 1.0f, 45.0f);
+}
+
 int processInput(GLFWwindow* window) {
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-		glfwSetWindowShouldClose(window, true);
-		return -1;
-	}
+	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, true); return -1; }
 
-	else if (glfwGetKey(window, GLFW_KEY_UP) == GLFW_PRESS) {
-		return 1;
-	}
+	else if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) return 1;
+	else if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) return 2;
 
-	else if (glfwGetKey(window, GLFW_KEY_DOWN) == GLFW_PRESS) {
-		return 2;
-	}
+	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) cameraSpeed += 0.25f;
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) cameraSpeed = std::max(0.0f, cameraSpeed - 0.25f);
+
+	float cameraSpeedDelta = cameraSpeed * deltaTime;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += cameraSpeedDelta * cameraFront;
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= cameraSpeedDelta * cameraFront;
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeedDelta;
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeedDelta;
 
 	return 0;
 }
