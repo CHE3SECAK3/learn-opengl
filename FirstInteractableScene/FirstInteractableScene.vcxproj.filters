@@ -15,16 +15,7 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="src\my_triangle.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="src\first_opengl_program.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="textures.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="cubes.cpp">
+    <ClCompile Include="..\OpenGLFirstProject\final_chapter_one.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="..\glad\glad.c">

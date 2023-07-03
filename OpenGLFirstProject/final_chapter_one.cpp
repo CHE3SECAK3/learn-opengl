@@ -1,6 +1,8 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <SHADER/shader.h>
+#include <CAMERA/camera.h>
+
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,27 +21,16 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 int processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-float clip(float value, float offset, float min, float max);
 
-glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 3.0f),
-	cameraFront = glm::vec3(0.0f, 0.0f, -1.0f),
-	cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
-
-bool firstCallback = true;
-
-float deltaTime = 0.0f, lastFrame = 0.0f;
-float cameraSpeed = 3.0f;
+Camera camera = Camera();
 float lastX = SCREEN_WIDTH / 2, lastY = SCREEN_HEIGHT / 2;
-
-glm::vec3 direction = glm::vec3(0.0f);
-float pitch = 0.0f, yaw = 0.0f;
-
-float fov = 45.0f;
+float deltaTime = 0.0f;
+bool firstMouseCallback = true;
 
 int main() {
 
 #pragma region SETUP
-
+	
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -56,7 +47,6 @@ int main() {
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
-
 
 	glEnable(GL_DEPTH_TEST);
 
@@ -160,33 +150,20 @@ int main() {
 
 #pragma endregion
 
-	#pragma region TRANSFORMATION
+#pragma region TRANSFORMATION AND CAMERA
 	glm::mat4 model, view, projection;
 
-
-#pragma endregion
-
-	#pragma region CAMERA
-
-	//glm::vec3 camera = glm::vec3(0.0f, 0.0f, 3.0f);
-	//glm::vec3 cameraTarget = glm::vec3(0.0f);
-	//glm::vec3 cameraPositiveZ = glm::normalize(camera - cameraTarget); // vector in direction of CAMERA'S positive z-axis (camera is pointed towards the negative z-axis)
-	//glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
-	//glm::vec3 cameraRight = glm::cross(up, cameraPositiveZ);
-	//glm::vec3 cameraUp = glm::cross(cameraPositiveZ, cameraRight);
-	
 #pragma endregion
 
 #pragma region RENDER LOOP
-
 	const float startTime = glfwGetTime();
-	float timeElapsed, currentFrame;
+	float lastFrame		= 0.0f,
+		  currentFrame	= 0.0f,
+		  timeElapsed	= 0.0f;
 
 	float rotateRate = 1.0f;
 	int numCubes = sizeof(cubePositions) / sizeof(glm::vec3);
 	float rotationOffset = 2 * PI / numCubes;
-
-	float radius, camX, camZ;
 
 	float ratio = 0.0f;
 	shader.setFloat("ratio", ratio);
@@ -195,7 +172,6 @@ int main() {
 		currentFrame = glfwGetTime();
 		deltaTime = currentFrame - lastFrame;
 		lastFrame = currentFrame;
-
 		timeElapsed = currentFrame - startTime;
 
 		int process = processInput(window);
@@ -208,15 +184,8 @@ int main() {
 			shader.setFloat("ratio", (ratio = std::max(ratio, 0.0f)));
 		}
 
-
-		radius = 10.0f;
-		camX = cos(timeElapsed) * radius;
-		camZ = sin(timeElapsed) * radius;
-		view = glm::mat4(1.0f);
-		//view = glm::lookAt(glm::vec3(camX, 0.0f, camZ), glm::vec3(0.0f), cameraUp); //rotating camera
-
-		view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
-		projection = glm::perspective(glm::radians(fov), ASPECT_RATIO, 0.1f, 100.0f);
+		view = camera.getViewMatrix();
+		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
 
 		shader.setMat4("view", view);
 		shader.setMat4("projection", projection);
@@ -258,37 +227,25 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-	float xOffset = xpos - lastX;
-	float yOffset = lastY - ypos; //screen y-axis is reversed
+	float xoffset, yoffset;
+	
+	if (firstMouseCallback) {
+		xoffset = yoffset = 0;
+		firstMouseCallback = false;
+	}
+	else {
+		xoffset = xpos - lastX;
+		yoffset = lastY - ypos; // screen y-axis is reversed
+	}
 
 	lastX = xpos;
 	lastY = ypos;
 
-	if (firstCallback) {
-		xOffset = yOffset = 0.0f;
-		firstCallback = false;
-	}
-
-	const float sens = 0.075f;
-	xOffset *= sens;
-	yOffset *= sens;
-
-	yaw += xOffset;
-	pitch = clip(pitch, yOffset, -89.0f, 89.0f);
-
-	direction.y = sin(glm::radians(pitch));
-	direction.x = cos(glm::radians(pitch)) * sin(glm::radians(yaw));
-	direction.z = cos(glm::radians(pitch)) * -cos(glm::radians(yaw));
-	cameraFront = glm::normalize(direction);
-}
-
-float clip(float pitch, float offset, float min, float max) {
-	float sum = pitch + offset;
-	return sum < min ? min : sum > max ? max : sum;
+	camera.processMouseMovementInput(xoffset, yoffset);
 }
 
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-	fov = clip(fov, -2 * (float)yoffset, 1.0f, 45.0f);
+	camera.processScrollwheelInput(yoffset);
 }
 
 int processInput(GLFWwindow* window) {
@@ -297,14 +254,14 @@ int processInput(GLFWwindow* window) {
 	else if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) return 1;
 	else if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) return 2;
 
-	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) cameraSpeed += 0.25f;
-	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) cameraSpeed = std::max(0.0f, cameraSpeed - 0.25f);
+	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) camera.processKeyboardInput(SPEED_UP, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboardInput(SLOW_DOWN, deltaTime);
 
-	float cameraSpeedDelta = cameraSpeed * deltaTime;
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) cameraPos += cameraSpeedDelta * cameraFront;
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) cameraPos -= cameraSpeedDelta * cameraFront;
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) cameraPos -= glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeedDelta;
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeedDelta;
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.processKeyboardInput(FORWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.processKeyboardInput(BACKWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.processKeyboardInput(LEFT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.processKeyboardInput(RIGHT, deltaTime);
+
 
 	return 0;
 }
