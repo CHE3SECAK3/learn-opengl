@@ -2,8 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <SHADER/shader.h>
 #include <CAMERA/camera.h>
-#include <ARRAYBUF/VertexBuffer.h>
-#include <ARRAYBUF/ElementBuffer.h>
 
 
 #include <glm/glm.hpp>
@@ -24,8 +22,7 @@ int processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 
-Camera camera;
-
+Camera camera = Camera();
 float lastX = SCREEN_WIDTH / 2, lastY = SCREEN_HEIGHT / 2;
 float deltaTime = 0.0f;
 bool firstMouseCallback = true;
@@ -108,12 +105,14 @@ int main() {
 #pragma endregion
 
 #pragma region PIPELINE
-	unsigned int VAO;
+	unsigned int VAO, VBO;
 	glGenVertexArrays(1, &VAO);
+	glGenBuffers(1, &VBO);
+
 	glBindVertexArray(VAO);
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-	VertexBuffer vb(vertices, sizeof(vertices));
-
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(3 * sizeof(float)));
 	glEnableVertexAttribArray(0);
@@ -214,7 +213,7 @@ int main() {
 
 #pragma region CLEANUP
 	glDeleteVertexArrays(1, &VAO);
-	vb.~VertexBuffer();
+	glDeleteBuffers(1, &VBO);
 
 	glfwTerminate();
 #pragma endregion
@@ -250,19 +249,18 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 }
 
 int processInput(GLFWwindow* window) {
-	float sprintFactor = deltaTime * (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS ? 2.5f : 1);
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) { glfwSetWindowShouldClose(window, true); return -1; }
 
 	else if (glfwGetKey(window, GLFW_KEY_EQUAL) == GLFW_PRESS) return 1;
 	else if (glfwGetKey(window, GLFW_KEY_MINUS) == GLFW_PRESS) return 2;
 
-	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) camera.processKeyboardInput(SPEED_UP, sprintFactor);
-	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboardInput(SLOW_DOWN, sprintFactor);
+	if (glfwGetKey(window, GLFW_KEY_U) == GLFW_PRESS) camera.processKeyboardInput(SPEED_UP, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_I) == GLFW_PRESS) camera.processKeyboardInput(SLOW_DOWN, deltaTime);
 
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.processKeyboardInput(FORWARD, sprintFactor);
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.processKeyboardInput(BACKWARD, sprintFactor);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.processKeyboardInput(LEFT, sprintFactor);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.processKeyboardInput(RIGHT, sprintFactor);
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) camera.processKeyboardInput(FORWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) camera.processKeyboardInput(BACKWARD, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) camera.processKeyboardInput(LEFT, deltaTime);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) camera.processKeyboardInput(RIGHT, deltaTime);
 
 
 	return 0;

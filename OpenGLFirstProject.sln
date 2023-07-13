@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "OpenGLFirstProject", "OpenG
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FirstInteractableScene", "FirstInteractableScene\FirstInteractableScene.vcxproj", "{835F3C3F-3710-4C2B-82BA-5460F3422DB8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Lighting", "Lighting\Lighting.vcxproj", "{B10D0DD4-8737-41BB-B0C8-968111B18626}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -31,6 +33,14 @@ Global
 		{835F3C3F-3710-4C2B-82BA-5460F3422DB8}.Release|x64.Build.0 = Release|x64
 		{835F3C3F-3710-4C2B-82BA-5460F3422DB8}.Release|x86.ActiveCfg = Release|Win32
 		{835F3C3F-3710-4C2B-82BA-5460F3422DB8}.Release|x86.Build.0 = Release|Win32
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Debug|x64.ActiveCfg = Debug|x64
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Debug|x64.Build.0 = Debug|x64
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Debug|x86.ActiveCfg = Debug|Win32
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Debug|x86.Build.0 = Debug|Win32
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Release|x64.ActiveCfg = Release|x64
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Release|x64.Build.0 = Release|x64
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Release|x86.ActiveCfg = Release|Win32
+		{B10D0DD4-8737-41BB-B0C8-968111B18626}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

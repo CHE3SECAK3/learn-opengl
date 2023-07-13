@@ -33,7 +33,7 @@ bool firstMouseCallback = true;
 int main() {
 
 #pragma region SETUP
-	
+
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -158,9 +158,9 @@ int main() {
 
 #pragma region RENDER LOOP
 	const float startTime = glfwGetTime();
-	float lastFrame		= 0.0f,
-		  currentFrame	= 0.0f,
-		  timeElapsed	= 0.0f;
+	float lastFrame = 0.0f,
+		currentFrame = 0.0f,
+		timeElapsed = 0.0f;
 
 	float rotateRate = 1.0f;
 	int numCubes = sizeof(cubePositions) / sizeof(glm::vec3);
@@ -229,7 +229,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 	float xoffset, yoffset;
-	
+
 	if (firstMouseCallback) {
 		xoffset = yoffset = 0;
 		firstMouseCallback = false;
