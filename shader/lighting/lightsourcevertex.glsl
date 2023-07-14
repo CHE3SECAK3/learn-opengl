@@ -2,8 +2,8 @@
 
 layout(location = 0) in vec3 vCoord;
 
-uniform mat4 model, view, projection;
+uniform mat4 MVP;
 
 void main() {
-	gl_Position = projection * view * model * vec4(vCoord, 1.0f);
+	gl_Position = MVP * vec4(vCoord, 1.0f);
 }

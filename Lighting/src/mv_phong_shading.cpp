@@ -142,7 +142,7 @@ int main() {
 	glm::vec3 objectColor(1.0f, 0.5f, 0.31f);
 	glm::vec3 lightColor = yellowLight;
 
-	Shader objectShader("../shader/lighting/vertex.glsl", "../shader/lighting/fragment.glsl");
+	Shader objectShader("../shader/lighting/modelviewvertex.glsl", "../shader/lighting/modelviewfragment.glsl");
 	Shader lightShader("../shader/lighting/lightsourcevertex.glsl", "../shader/lighting/lightsourcefragment.glsl");
 
 #pragma endregion
@@ -159,7 +159,8 @@ int main() {
 			currentFrame	= 0.0f,
 			timeElapsed		= 0.0f;
 
-	float radius = 1.5f;
+	float radius = 2.0f;
+	float rotateRate = 0.5f;
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -175,24 +176,23 @@ int main() {
 
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
-
+		lightPos = shapePos + radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f);
 
 		va[0].Bind();
 		objectShader.use();
 
 		model = glm::mat4(1.0f);
 		model = glm::translate(model, shapePos);
-		model = glm::scale(model, glm::vec3(1.5f, 0.5f, 3.0f));
-		normalMatrix = glm::transpose(glm::inverse(model));
+		model = glm::rotate(model, rotateRate * timeElapsed, glm::vec3(0.0f, 1.0f, 0.0f));
+		model = glm::scale(model, glm::vec3(2.0f, 0.15f, 2.0f));
+		modelView = view * model;
+		normalMatrix = glm::transpose(glm::inverse(modelView));
 
-		objectShader.setVec3("lightPos", lightPos);
-		objectShader.setVec3("cameraPos", camera.Position);
-
-		objectShader.setMat4("model", model);
-		objectShader.setMat4("view", view);
+		objectShader.setMat4("MV", modelView);
 		objectShader.setMat4("projection", projection);
-		objectShader.setMat3("normalMatrix", normalMatrix);
+		objectShader.setMat3("MVN", normalMatrix);
 		
+		objectShader.setVec3("lightPos", glm::vec3(view * glm::vec4(lightPos, 1.0f)));
 		objectShader.setVec3("lightColor", lightColor);
 		objectShader.setVec3("objectColor", objectColor);
 		objectShader.setFloat("ambientFactor", 0.1f);
@@ -207,17 +207,12 @@ int main() {
 		va[1].Bind();
 		lightShader.use();
 
-
 		model = glm::mat4(1.0f);
-		lightPos = shapePos + radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f);
 		model = glm::translate(model, lightPos);
 		model = glm::scale(model, glm::vec3(0.2f));
 		model = glm::rotate(model, timeElapsed, glm::vec3(0.0f, 0.0f, 1.0f));
 		
-		lightShader.setMat4("model", model);
-		lightShader.setMat4("view", view);
-		lightShader.setMat4("projection", projection);
-
+		lightShader.setMat4("MVP", projection * view * model);
 		lightShader.setVec3("lightColor", lightColor);
 
 		glDrawArrays(GL_TRIANGLES, 0, 36);
