@@ -113,19 +113,19 @@ int main() {
 
 	glm::vec3 cubePositions[] = {
 		glm::vec3(0.0f, 0.0f, 0.0f),
-		//glm::vec3(2.0f, 5.0f, -15.0f),
-		//glm::vec3(-1.5f, -2.2f, -2.5f),
-		//glm::vec3(-3.8f, -2.0f, -12.3f),
-		//glm::vec3(2.4f, -0.4f, -3.5f),
-		//glm::vec3(-1.7f, 3.0f, -7.5f),
-		//glm::vec3(1.3f, -2.0f, -2.5f),
-		//glm::vec3(1.5f, 2.0f, -2.5f),
-		//glm::vec3(1.5f, 0.2f, -1.5f),
-		//glm::vec3(-1.3f, 1.0f, -1.5f)
+		glm::vec3(2.0f, 5.0f, -15.0f),
+		glm::vec3(-1.5f, -2.2f, -2.5f),
+		glm::vec3(-3.8f, -2.0f, -12.3f),
+		glm::vec3(2.4f, -0.4f, -3.5f),
+		glm::vec3(-1.7f, 3.0f, -7.5f),
+		glm::vec3(1.3f, -2.0f, -2.5f),
+		glm::vec3(1.5f, 2.0f, -2.5f),
+		glm::vec3(1.5f, 0.2f, -1.5f),
+		glm::vec3(-1.3f, 1.0f, -1.5f)
 	};
 
-	glm::vec3 lightPos(0.0f, -1.0f, 0.0f);
-	glm::vec3 shapePos(0.0f, -1.0f, -2.0f);
+	glm::vec3 lightPos(0.0f, 1.0f, 1.0f);
+	//glm::vec3 shapePos(0.0f, -1.0f, -2.0f);
 
 #pragma endregion
 
@@ -159,6 +159,7 @@ int main() {
 
 	Texture diffuseMap("../images/container2.png");
 	Texture specularMap("../images/container2_specular.png");
+	Texture emissionMap("../images/matrix.jpg");
 
 #pragma endregion
 
@@ -176,9 +177,10 @@ int main() {
 
 	float radius = 1.5f;
 	float rotateRate = 0.5f;
+	int nCubes = sizeof(cubePositions) / sizeof(glm::vec3);
 
-	/*camera.Position = shapePos + glm::vec3(1.0f, 4.0f, 3.0f);
-	camera.Direction = glm::normalize(shapePos - camera.Position);*/
+	bool EMIT = false;
+	bool USE_POS_LIGHT = true;
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -189,61 +191,72 @@ int main() {
 
 		processInput(window);
 
-		glClearColor(0.25f, 0.25f, 0.25f, 1.0f);
+		glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
-		lightPos = shapePos + (STATIC_LIGHT ? glm::vec3(0.0f, 1.0f, -1.0f) : radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f));
-
-		glm::vec3 cshift(sin(timeElapsed), cos(timeElapsed), objectColor.b);
+		//lightPos = shapePos + (STATIC_LIGHT ? glm::vec3(0.0f, 1.0f, -1.0f) : radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f));
 
 		va[0].Bind();
 		objectShader.use();
-
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, shapePos);
-		model = glm::rotate(model, rotateRate * timeElapsed, glm::vec3(0.0f, 1.0f, 0.0f));
-		//model = glm::scale(model, glm::vec3(2.0f, 0.15f, 2.0f));
-		modelView = view * model;
-		normalMatrix = glm::transpose(glm::inverse(modelView));
-
-		objectShader.setMat4("MV", modelView);
+		
 		objectShader.setMat4("projection", projection);
-		objectShader.setMat3("MVN", normalMatrix);
+
+		objectShader.setBool("usePosLight", USE_POS_LIGHT);
 		
 		objectShader.setVec3("light.position", glm::vec3(view * glm::vec4(lightPos, 1.0f)));
+		objectShader.setFloat("light.constant", 1.0f);
+		objectShader.setFloat("light.linear", 0.09f);
+		objectShader.setFloat("light.quadratic", 0.032f);
+
+		objectShader.setVec3("light.direction", glm::vec3(view * glm::vec4(-lightPos, 0.0f)));
+
 		objectShader.setVec3("light.color", lightColor);
 		objectShader.setVec3("light.ambient", glm::vec3(0.1f));
-		objectShader.setVec3("light.diffuse", glm::vec3(0.75f));
-		objectShader.setVec3("light.specular", glm::vec3(1.0f));
+		objectShader.setVec3("light.diffuse", glm::vec3(0.5f));
+		objectShader.setVec3("light.specular", glm::vec3(0.75f));
 		
 		objectShader.setVec3("material.ambient", objectColor);
 		objectShader.setInt("material.diffuse", diffuseMap.getTextureUnit());
 		objectShader.setInt("material.specular", specularMap.getTextureUnit());
-		objectShader.setFloat("material.shininess", 16);
-
+		objectShader.setFloat("material.shininess", 64);
+		objectShader.setInt("material.emission", emissionMap.getTextureUnit());
+		objectShader.setFloat("material.intensity", EMIT ? (sin(timeElapsed) + 1) * 0.5f : 0.0f);
+		
 		diffuseMap.Bind();
 		specularMap.Bind();
+		emissionMap.Bind();
 		
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		
+		for (int i = 0; i < nCubes; i++) {
+			model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			model = glm::rotate(model, i * 2 * PI / nCubes + rotateRate * timeElapsed, glm::vec3(1.0f, 1.0f, -1.0f));
+			modelView = view * model;
+			normalMatrix = glm::transpose(glm::inverse(modelView));
+
+			objectShader.setMat4("MV", modelView);
+			objectShader.setMat3("MVN", normalMatrix);
+			
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+		}		
 		va[0].Unbind();
 
 		//lighting
-		va[1].Bind();
-		lightShader.use();
+		if (USE_POS_LIGHT) {
+			va[1].Bind();
+			lightShader.use();
 
-		model = glm::mat4(1.0f);
-		model = glm::translate(model, lightPos);
-		model = glm::scale(model, glm::vec3(0.2f));
-		model = glm::rotate(model, timeElapsed, glm::vec3(0.0f, 0.0f, 1.0f));
-		
-		lightShader.setMat4("MVP", projection * view * model);
-		lightShader.setVec3("lightColor", lightColor);
+			model = glm::mat4(1.0f);
+			model = glm::translate(model, lightPos);
+			model = glm::scale(model, glm::vec3(0.2f));
 
-		glDrawArrays(GL_TRIANGLES, 0, 36);
-		va[1].Unbind();
+			lightShader.setMat4("MVP", projection * view * model);
+			lightShader.setVec3("lightColor", lightColor);
+
+			glDrawArrays(GL_TRIANGLES, 0, 36);
+			va[1].Unbind();
+		}
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
