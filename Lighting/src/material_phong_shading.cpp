@@ -23,7 +23,13 @@ constexpr float PI = 3.141592653f;
 constexpr float SCREEN_WIDTH = 800.0f;
 constexpr float SCREEN_HEIGHT = 600.0f;
 constexpr float ASPECT_RATIO = SCREEN_WIDTH / SCREEN_HEIGHT;
-constexpr bool STATIC_LIGHT = true;
+
+enum LIGHT_TYPE {
+	L_DIRECTIONAL,
+	L_POINT,
+	L_SPOT,
+	L_PLANE,
+};
 
 
 constexpr glm::vec3 YELLOW_LIGHT(1.0f, 0.98f, 0.82f);
@@ -151,7 +157,7 @@ int main() {
 #pragma endregion
 
 #pragma region SHADER AND TEXTURE 
-	glm::vec3 objectColor = 1.15f * glm::vec3(0.4f, 0.27f, 0.0f);
+	glm::vec3 objectColor = glm::vec3(0.4f, 0.27f, 0.0f);
 	glm::vec3 lightColor = glm::vec3(1.0f);
 
 	Shader objectShader("../shader/lighting/modelviewvertex.glsl", "../shader/lighting/mapfragment.glsl");
@@ -180,7 +186,8 @@ int main() {
 	int nCubes = sizeof(cubePositions) / sizeof(glm::vec3);
 
 	bool EMIT = false;
-	bool USE_POS_LIGHT = true;
+	LIGHT_TYPE lightType = LIGHT_TYPE::L_SPOT;
+	bool STATIC_LIGHT = true;
 
 	while (!glfwWindowShouldClose(window)) {
 
@@ -196,31 +203,33 @@ int main() {
 
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
-		//lightPos = shapePos + (STATIC_LIGHT ? glm::vec3(0.0f, 1.0f, -1.0f) : radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f));
+		lightPos = STATIC_LIGHT ? glm::vec3(-2.0f, 0.0f, 2.0f) : radius * glm::vec3(-sin(timeElapsed), cos(timeElapsed), 0.0f);
+		//float spotAngle = sin(timeElapsed) * 7.5f + 12.5f;
 
 		va[0].Bind();
 		objectShader.use();
 		
 		objectShader.setMat4("projection", projection);
-
-		objectShader.setBool("usePosLight", USE_POS_LIGHT);
 		
-		objectShader.setVec3("light.position", glm::vec3(view * glm::vec4(lightPos, 1.0f)));
+		objectShader.setInt("light.type", lightType);
+
+		objectShader.setVec3("light.direction", glm::normalize( glm::vec3(view * glm::vec4(camera.Direction, 0.0f)) ));
+		objectShader.setVec3("light.position", glm::vec3(view * glm::vec4(camera.Position, 1.0f)));
+		objectShader.setFloat("light.innerConeAngle", glm::cos(glm::radians(12.5f)));
+		objectShader.setFloat("light.outerConeAngle", glm::cos(glm::radians(17.5f)));
 		objectShader.setFloat("light.constant", 1.0f);
 		objectShader.setFloat("light.linear", 0.09f);
 		objectShader.setFloat("light.quadratic", 0.032f);
 
-		objectShader.setVec3("light.direction", glm::vec3(view * glm::vec4(-lightPos, 0.0f)));
-
 		objectShader.setVec3("light.color", lightColor);
 		objectShader.setVec3("light.ambient", glm::vec3(0.1f));
-		objectShader.setVec3("light.diffuse", glm::vec3(0.5f));
-		objectShader.setVec3("light.specular", glm::vec3(0.75f));
+		objectShader.setVec3("light.diffuse", glm::vec3(0.8f));
+		objectShader.setVec3("light.specular", glm::vec3(1.0f));
 		
-		objectShader.setVec3("material.ambient", objectColor);
+		objectShader.setVec3("material.ambient", glm::vec3(1.0f));
 		objectShader.setInt("material.diffuse", diffuseMap.getTextureUnit());
 		objectShader.setInt("material.specular", specularMap.getTextureUnit());
-		objectShader.setFloat("material.shininess", 64);
+		objectShader.setFloat("material.shininess", 32);
 		objectShader.setInt("material.emission", emissionMap.getTextureUnit());
 		objectShader.setFloat("material.intensity", EMIT ? (sin(timeElapsed) + 1) * 0.5f : 0.0f);
 		
@@ -243,7 +252,7 @@ int main() {
 		va[0].Unbind();
 
 		//lighting
-		if (USE_POS_LIGHT) {
+		if (lightType == LIGHT_TYPE::L_POINT) {
 			va[1].Bind();
 			lightShader.use();
 

@@ -12,7 +12,7 @@ uniform mat4 MV, projection;
 uniform mat3 MVN;
 
 void main() {
-	fPos = (MV * vec4(vCoord, 1.0)).xyz;
+	fPos = vec3(MV * vec4(vCoord, 1.0));
 	fNormal =  normalize(MVN * normal);
 	fTexCoord = tCoord;
 
