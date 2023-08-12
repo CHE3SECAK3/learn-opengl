@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\glad\glad.c" />
-    <ClCompile Include="..\src\textures.cpp" />
+    <ClCompile Include="src\textures.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
