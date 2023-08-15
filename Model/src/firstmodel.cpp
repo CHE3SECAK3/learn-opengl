@@ -22,7 +22,7 @@
 //#define STB_IMAGE_IMPLEMENTATION
 //#include <STB/stb_image.h>
 
-#define TEST 0
+#define TRIMESH 1
 
 constexpr float PI = 3.141592653f;
 
@@ -70,16 +70,15 @@ int main() {
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetScrollCallback(window, scroll_callback);
 
-	glEnable(GL_DEPTH_TEST);
-
 #pragma endregion
 
 #pragma region DATA
 
-	Model backpack("../models/backpack/backpack.obj");
-	Shader backpackShader("shader/vertex.glsl", "shader/fragment.glsl");
+	Model backpack("models/backpack/backpack.obj");
+	Shader backpackShader("shader/bpvertex.glsl", "shader/bpfragment.glsl");
+	Shader solidColorShader("shader/solidcolorvertex.glsl", "shader/solidcolorfragment.glsl");
 
-#if TEST
+#if TRIMESH
 	std::vector<Vertex> vTri;
 	Vertex v = { glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f) };
 	vTri.push_back(v);
@@ -92,7 +91,7 @@ int main() {
 	
 	std::vector<Texture> tTri;
 	
-	Mesh m(vTri, iTri, tTri);
+	Mesh tri(vTri, iTri, tTri);
 #endif
 
 #pragma endregion
@@ -117,16 +116,27 @@ int main() {
 
 		processInput(window);
 
-		glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		glEnable(GL_DEPTH_TEST);
+		glDepthFunc(GL_LESS);
+		glEnable(GL_STENCIL_TEST);
 
-		backpackShader.use();
+		glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+		glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		glStencilMask(0xFF);
+
+		glClearColor(0.15f, 0.15f, 0.15f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
+		
+		//- BACKPACK MODEL
+
+		backpackShader.use();
+
 		model = glm::mat4(1.0f);
-		model = glm::scale(model, glm::vec3(0.2f));
 		model = glm::rotate(model, timeElapsed, glm::vec3(1.0f, 1.0f, 1.0f));
+		model = glm::scale(model, glm::vec3(0.2f));
 		modelview = view * model;
 
 		backpackShader.setMat4("M_modelview", modelview);
@@ -137,8 +147,8 @@ int main() {
 		light.type = LIGHT_TYPE::L_SPOT;
 		//light.position		= glm::vec3(modelview * glm::vec4(0.0f, 1.0f, 2.0f, 1.0f));
 		//light.direction		= glm::normalize(glm::vec3(modelview * glm::vec4(1.0f, -1.0f, -1.0f, 0.0f)));
-		light.position			= glm::vec3(0.0f);
-		light.direction			= glm::vec3(0.0f, 0.0f, -1.0f);
+		light.position			= glm::vec3(0.0f);				// camera
+		light.direction			= glm::vec3(0.0f, 0.0f, -1.0f);	// camera
 		light.ambient			= glm::vec3(0.1f);
 		light.diffuse			= glm::vec3(0.5f);
 		light.specular			= glm::vec3(1.0f);
@@ -152,7 +162,29 @@ int main() {
 		backpackShader.setLight("lights[0]", light);
 		backpackShader.setInt("backpack.shininess", 64);
 
-		backpack.Draw(backpackShader, "backpack");
+		solidColorShader.use();
+		model = glm::mat4(1.0f);
+		model = glm::rotate(model, timeElapsed, glm::vec3(1.0f, 1.0f, 1.0f));
+		model = glm::scale(model, glm::vec3(0.21f));
+
+		solidColorShader.setMat4("M_MVP", projection * view * model);
+		solidColorShader.setVec3("color", glm::vec3(0.2f, 0.05f, 0.65f));
+
+		//glEnable(GL_DEPTH_TEST);
+		//glDepthFunc(GL_LESS);
+
+		//glEnable(GL_STENCIL_TEST);
+		//glStencilFunc(GL_ALWAYS, 1, 0xFF);
+		//glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+		//glStencilMask(0xFF);
+		//backpack.Draw(backpackShader, "backpack");
+		//
+		//glDisable(GL_DEPTH_TEST);
+		//glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+		//glStencilMask(0x00);
+		//backpack.Draw(solidColorShader);
+
+		backpack.Draw(backpackShader, "backpack", solidColorShader);
 		
 		glfwSwapBuffers(window);
 		glfwPollEvents();

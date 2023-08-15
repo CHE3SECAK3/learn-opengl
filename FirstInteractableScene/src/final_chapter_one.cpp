@@ -143,10 +143,12 @@ int main() {
 	}
 
 
-	Shader shader("../shader/cubevertex.glsl", "../shader/cubefragment.glsl");
+	Shader shader("shader/cubevertex.glsl", "shader/cubefragment.glsl");
 	shader.use();
 	shader.setInt("t1", 0);
 	shader.setInt("t2", 1);
+
+	Shader outline("shader/outlinevertex.glsl", "shader/outlinefragment.glsl");
 
 #pragma endregion
 
@@ -167,6 +169,7 @@ int main() {
 
 	float ratio = 0.0f;
 	shader.setFloat("ratio", ratio);
+
 	while (!glfwWindowShouldClose(window)) {
 
 		currentFrame = glfwGetTime();
@@ -187,22 +190,48 @@ int main() {
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
 
-		shader.setMat4("view", view);
-		shader.setMat4("projection", projection);
-
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		// make sure stencil buffer can be cleared
+		glStencilMask(0xFF);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		glBindVertexArray(VAO);
 
 		for (int i = 0; i < numCubes; i++) {
+			glEnable(GL_DEPTH_TEST);
+			glDepthFunc(GL_LESS);
+			glEnable(GL_STENCIL_TEST);
+
+			glStencilFunc(GL_ALWAYS, 1, 0xFF);
+			glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+			glStencilMask(0xFF);
+
+			shader.use();
+			shader.setMat4("view", view);
+			shader.setMat4("projection", projection);
+
 			model = glm::mat4(1.0f);
 			model = glm::translate(model, cubePositions[i]);
 			model = glm::rotate(model, rotationOffset + timeElapsed * rotateRate * (i + 1) / 4, glm::normalize(cubePositions[i] + glm::vec3(1.0f, 1.0f, 1.0f)));
 
 			shader.setMat4("model", model);
+
 			glDrawArrays(GL_TRIANGLES, 0, 36);
 
+			glDisable(GL_DEPTH_TEST);
+			glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+			glStencilMask(0x00);
+
+			model = glm::mat4(1.0f);
+			model = glm::translate(model, cubePositions[i]);
+			model = glm::rotate(model, rotationOffset + timeElapsed * rotateRate * (i + 1) / 4, glm::normalize(cubePositions[i] + glm::vec3(1.0f, 1.0f, 1.0f)));
+			model = glm::scale(model, glm::vec3(1.1f));
+
+			outline.use();
+			outline.setMat4("M_MVP", projection * view * model);
+			outline.setVec3("color", glm::vec3(0.4f, 0.1f, 0.8f));
+			glDrawArrays(GL_TRIANGLES, 0, 36);
 		}
 		glBindVertexArray(0);
 
