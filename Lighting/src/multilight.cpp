@@ -215,6 +215,7 @@ int main() {
 		lights[0].color = glm::vec3(0.5f, 1.0f, 0.0f);
 		lights[0].ambient = glm::vec3(0.1f);
 		lights[0].diffuse = glm::vec3(0.8f);
+		lights[0].specular = glm::vec3(1.0f);
 		
 
 		lights[1].type = LIGHT_TYPE::L_SPOT;
@@ -234,7 +235,6 @@ int main() {
 		lights[1].ambient = glm::vec3(0.1f);
 		lights[1].diffuse = glm::vec3(0.8f);
 		lights[1].specular = glm::vec3(1.0f);
-		lights[0].specular = glm::vec3(1.0f);
 		
 
 		lights[2].type = LIGHT_TYPE::L_DIRECTIONAL;

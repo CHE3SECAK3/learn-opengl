@@ -22,7 +22,11 @@
 //#define STB_IMAGE_IMPLEMENTATION
 //#include <STB/stb_image.h>
 
-#define TRIMESH 1
+enum toRGB {
+	R = 0x1,
+	G = 0x2,
+	B = 0x4
+};
 
 constexpr float PI = 3.141592653f;
 
@@ -38,6 +42,7 @@ void processInput(GLFWwindow* window);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 glm::vec3 capcolor(glm::vec3 rgb);
+void setOutlineColor(const std::vector<int>& stateList, int& state, glm::vec3& color);
 
 Camera camera;
 
@@ -73,26 +78,74 @@ int main() {
 #pragma endregion
 
 #pragma region DATA
+#define TEST 0
+#if TEST
+	float vertices[] = {
+		// positions          // normals           // texture coords
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,  0.0f,  0.0f,
 
-	Model backpack("models/backpack/backpack.obj");
-	Shader backpackShader("shader/bpvertex.glsl", "shader/bpfragment.glsl");
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  1.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  0.0f,  0.0f,
+
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  1.0f,  0.0f,
+
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,  0.0f,  1.0f,
+
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f,
+		 0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		 0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  1.0f,  0.0f,
+		-0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  0.0f,
+		-0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f,  1.0f
+	};
+
+	VertexBuffer vb(vertices, sizeof(vertices));
+	VertexBufferLayout vbl;
+	vbl.DefineVertexAttribute();
+
+	VertexArray va(vb, vbl);
+
+	Texture diffuse("images/container2.png", DIFFUSE);
+	diffuse.TextureUnit = 0;
+	Texture specular("images/container2_specular.png", SPECULAR);
+	specular.TextureUnit = 1;
+#endif
+
+	//Model backpack("models/backpack/backpack_sep_origins.obj");
+	//Model test("models/testcube/testcube.obj");
+	Model test("models/testcube/testcube1.obj");
+	Shader modelShader("shader/modelvertex.glsl", "shader/modelfragment.glsl");
 	Shader solidColorShader("shader/solidcolorvertex.glsl", "shader/solidcolorfragment.glsl");
 
-#if TRIMESH
-	std::vector<Vertex> vTri;
-	Vertex v = { glm::vec3(-0.5f, -0.5f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f) };
-	vTri.push_back(v);
-	v = { glm::vec3(0.0f, 0.5f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f) };
-	vTri.push_back(v);
-	v = { glm::vec3(0.5f, -0.5f, 0.0f), glm::vec3(0.0f), glm::vec2(0.0f) };
-	vTri.push_back(v);
-	
-	std::vector<unsigned int> iTri = { 0, 1, 2 };
-	
-	std::vector<Texture> tTri;
-	
-	Mesh tri(vTri, iTri, tTri);
-#endif
+	const std::vector<int> RGB_STATE = { R, R|G, G, G|B, B, R|B };
+	int state = -1;
+	glm::vec3 currentColor(0.0f);
 
 #pragma endregion
 
@@ -129,62 +182,56 @@ int main() {
 
 		view = camera.getViewMatrix();
 		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
-		
-		//- BACKPACK MODEL
 
-		backpackShader.use();
+		modelShader.use();
 
 		model = glm::mat4(1.0f);
-		model = glm::rotate(model, timeElapsed, glm::vec3(1.0f, 1.0f, 1.0f));
-		model = glm::scale(model, glm::vec3(0.2f));
+		model = glm::scale(model, glm::vec3(0.25f));
+		//model = glm::rotate(model, 0.5f * timeElapsed, glm::vec3(0.0f, 1.0f, -1.0f));
 		modelview = view * model;
 
-		backpackShader.setMat4("M_modelview", modelview);
-		backpackShader.setMat4("M_projection", projection);
-		backpackShader.setMat3("M_normal", glm::mat3(glm::transpose(glm::inverse(modelview))));
+		modelShader.setMat4("M_modelview", modelview);
+		modelShader.setMat4("M_projection", projection);
+		modelShader.setMat3("M_normal", glm::transpose(glm::inverse(modelview)));
 
 		Light light;
-		light.type = LIGHT_TYPE::L_SPOT;
-		//light.position		= glm::vec3(modelview * glm::vec4(0.0f, 1.0f, 2.0f, 1.0f));
-		//light.direction		= glm::normalize(glm::vec3(modelview * glm::vec4(1.0f, -1.0f, -1.0f, 0.0f)));
-		light.position			= glm::vec3(0.0f);				// camera
-		light.direction			= glm::vec3(0.0f, 0.0f, -1.0f);	// camera
+
+		//light.type = LIGHT_TYPE::L_SPOT;
+		//light.SetLightToCameraOrientation();
+		light.type = LIGHT_TYPE::L_DIRECTIONAL;
+		light.direction = view * glm::vec4(-1.0f, -1.0f, -1.0f, 0.0f);
 		light.ambient			= glm::vec3(0.1f);
-		light.diffuse			= glm::vec3(0.5f);
+		light.diffuse			= glm::vec3(0.8f);
 		light.specular			= glm::vec3(1.0f);
-		light.constant			= 1;
-		light.linear			= 0.22f;
-		light.quadratic			= 0.2f;
-		light.innerConeAngle	= glm::cos(glm::radians(10.0f));
-		light.outerConeAngle	= glm::cos(glm::radians(15.0f));
+		light.SetAttenuation(1, 0.09f, 0.032f);
+		light.SetConeAngles(10.0f, 12.5f);
 		light.color				= YELLOW_LIGHT;
 
-		backpackShader.setLight("lights[0]", light);
-		backpackShader.setInt("backpack.shininess", 64);
+		modelShader.setLight("lights[0]", light);
+		modelShader.setVec3("model.ambient", YELLOW_LIGHT);
+		modelShader.setFloat("model.shininess", 32.0f);
+
+		model = glm::mat4(1.0f);
+		model = glm::scale(model, glm::vec3(0.26f));
 
 		solidColorShader.use();
-		model = glm::mat4(1.0f);
-		model = glm::rotate(model, timeElapsed, glm::vec3(1.0f, 1.0f, 1.0f));
-		model = glm::scale(model, glm::vec3(0.21f));
-
 		solidColorShader.setMat4("M_MVP", projection * view * model);
-		solidColorShader.setVec3("color", glm::vec3(0.2f, 0.05f, 0.65f));
+		setOutlineColor(RGB_STATE, state, currentColor);
+		solidColorShader.setVec3("color", currentColor);
 
-		//glEnable(GL_DEPTH_TEST);
-		//glDepthFunc(GL_LESS);
+#if TEST
+		va.Bind();
+		diffuse.Bind();
+		specular.Bind();
+		modelShader.setInt("model.texture_diffuse0", diffuse.TextureUnit);
+		modelShader.setInt("model.texture_specular0", specular.TextureUnit);
 
-		//glEnable(GL_STENCIL_TEST);
-		//glStencilFunc(GL_ALWAYS, 1, 0xFF);
-		//glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-		//glStencilMask(0xFF);
-		//backpack.Draw(backpackShader, "backpack");
-		//
-		//glDisable(GL_DEPTH_TEST);
-		//glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
-		//glStencilMask(0x00);
-		//backpack.Draw(solidColorShader);
+		glDrawArrays(GL_TRIANGLES, 0, 36);
+		va.Unbind();
+#endif
 
-		backpack.Draw(backpackShader, "backpack", solidColorShader);
+		test.Draw(modelShader, "model", solidColorShader);
+		//backpack.Draw(modelShader, "model", solidColorShader);
 		
 		glfwSwapBuffers(window);
 		glfwPollEvents();
@@ -245,6 +292,83 @@ void processInput(GLFWwindow* window) {
 
 glm::vec3 capcolor(glm::vec3 rgb) {
 	return glm::vec3(std::min(rgb.r, 1.0f), std::min(rgb.g, 1.0f), std::min(rgb.b, 1.0f));
+}
+
+void setOutlineColor(const std::vector<int>& stateList, int& state, glm::vec3& color) {
+	const float COLOR_CHANGE_DELTA = 0.001f;
+	// R, R|G, G, G|B, B, R|B 
+	switch (state) {
+		case R:
+			if (color.b <= 0.01f) {
+				 
+				color.b = 0.0f;
+				state = R|G;
+			}
+
+			else {
+				color.b -= COLOR_CHANGE_DELTA;
+				break;
+			}
+		case R|G:
+			if (color.g >= 0.99f) {
+				 
+				color.g = 1.0f;
+				state = G;
+			}
+
+			else {
+				color.g += COLOR_CHANGE_DELTA;
+				break;
+			}
+		case G:
+			if (color.r <= 0.01f) {
+				 
+				color.r = 0.0f;
+				state = G|B;
+			}
+
+			else {
+				color.r -= COLOR_CHANGE_DELTA;
+				break;
+			}
+		case G|B:
+			if (color.b >= 0.99f) {
+				 
+				color.b = 1.0f;
+				state = B;
+			}
+
+			else {
+				color.b += COLOR_CHANGE_DELTA;
+				break;
+			}
+		case B:
+			if (color.g <= 0.01f) {
+				 
+				color.g = 0.0f;
+				state = R|B;
+			}
+
+			else {
+				color.g -= COLOR_CHANGE_DELTA;
+				break;
+			}
+		case R|B:
+			if (color.r >= 0.99f) {
+				 
+				color.r = 1.0f;
+				state = R;
+			}
+
+			else {
+				color.r += COLOR_CHANGE_DELTA;
+				break;
+			}
+		default:
+			 
+			color = glm::vec3(1, 0, 0);
+			state = R;
+	}
 }
 
 #pragma endregion

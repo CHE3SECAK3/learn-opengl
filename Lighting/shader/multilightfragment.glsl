@@ -110,7 +110,6 @@ void main() {
 	vec3 emission = tEmission * boxMaterial.emissionIntensity;
 	
 	for (int i = 0; i < NUM_LIGHTS; i++) {
-
 		switch (lights[i].type) {
 			case L_DIRECTIONAL:
 				objectColor += calculateDirectionalLight(lights[i], boxMaterial, tDiffuse, tSpecular);
