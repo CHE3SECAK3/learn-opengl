@@ -3,24 +3,10 @@
 #include <algorithm>
 #include <vector>
 
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <SHADER/shader.h>
+#include <CTXMANAGER/contextmanager.hpp>
 #include <CAMERA/camera.h>
-#include <VERTEXARRAY/VertexArray.h>
-#include <ARRAYBUF/VertexBuffer.h>
-#include <ARRAYBUF/ElementBuffer.h>
-#include <TEXTURE/texture.h>
-#include <LIGHT/light.h>
-#include <MATERIAL/material.h>
+#include <SHADER/shader.h>
 #include <MODEL/model.h>
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-
-//#define STB_IMAGE_IMPLEMENTATION
-//#include <STB/stb_image.h>
 
 enum toRGB {
 	R = 0x1,
@@ -37,14 +23,15 @@ constexpr float ASPECT_RATIO = SCREEN_WIDTH / SCREEN_HEIGHT;
 constexpr glm::vec3 YELLOW_LIGHT(1.0f, 0.98f, 0.82f);
 
 typedef unsigned char BYTE;
-void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
+void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
 glm::vec3 capcolor(glm::vec3 rgb);
 void setOutlineColor(const std::vector<int>& stateList, int& state, glm::vec3& color);
 
 Camera camera;
+ContextManager context;
 
 float lastX = SCREEN_WIDTH / 2, lastY = SCREEN_HEIGHT / 2;
 float deltaTime = 0.0f;
@@ -57,23 +44,10 @@ std::ostream& operator<<(std::ostream& stream, glm::vec3& vector) {
 int main() {
 
 #pragma region SETUP
-
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	GLFWwindow* window = glfwCreateWindow(SCREEN_WIDTH, SCREEN_HEIGHT, "LearnOpenGL", NULL, NULL);
-	glfwMakeContextCurrent(window);
-
-	gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-
-	glViewport(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	glfwSetCursorPosCallback(window, mouse_callback);
-	glfwSetScrollCallback(window, scroll_callback);
+	context.Init(SCREEN_WIDTH, SCREEN_HEIGHT, "LearnOpenGL");
+	glfwSetFramebufferSizeCallback(context.window, framebuffer_size_callback);
+	glfwSetCursorPosCallback(context.window, mouse_callback);
+	glfwSetScrollCallback(context.window, scroll_callback);
 
 #pragma endregion
 
@@ -137,9 +111,8 @@ int main() {
 	specular.TextureUnit = 1;
 #endif
 
-	//Model backpack("models/backpack/backpack_sep_origins.obj");
-	//Model test("models/testcube/testcube.obj");
-	Model test("models/testcube/testcube1.obj");
+	Model backpack("models/backpack/backpack.obj");
+	Model test("models/testcube/testcube.obj");
 	Shader modelShader("shader/modelvertex.glsl", "shader/modelfragment.glsl");
 	Shader solidColorShader("shader/solidcolorvertex.glsl", "shader/solidcolorfragment.glsl");
 
@@ -161,13 +134,13 @@ int main() {
 			currentFrame	= 0.0f,
 			timeElapsed		= 0.0f;
 
-	while (!glfwWindowShouldClose(window)) {
+	while (!glfwWindowShouldClose(context.window)) {
 		currentFrame	= glfwGetTime();
 		deltaTime		= currentFrame - lastFrame;
 		lastFrame		= currentFrame;
 		timeElapsed		= currentFrame - startTime;
 
-		processInput(window);
+		processInput(context.window);
 
 		glEnable(GL_DEPTH_TEST);
 		glDepthFunc(GL_LESS);
@@ -181,25 +154,19 @@ int main() {
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
 		view = camera.getViewMatrix();
-		projection = glm::perspective(glm::radians(camera.getFOV()), ASPECT_RATIO, 0.1f, 100.0f);
+		projection = glm::perspective(glm::radians(camera.getFOV()), context.aspectRatio, 0.1f, 100.0f);
 
 		modelShader.use();
 
-		model = glm::mat4(1.0f);
-		model = glm::scale(model, glm::vec3(0.25f));
-		//model = glm::rotate(model, 0.5f * timeElapsed, glm::vec3(0.0f, 1.0f, -1.0f));
-		modelview = view * model;
-
-		modelShader.setMat4("M_modelview", modelview);
-		modelShader.setMat4("M_projection", projection);
-		modelShader.setMat3("M_normal", glm::transpose(glm::inverse(modelview)));
-
 		Light light;
-
-		//light.type = LIGHT_TYPE::L_SPOT;
-		//light.SetLightToCameraOrientation();
+		#define SPOT 1
+		#if SPOT
+		light.type = LIGHT_TYPE::L_SPOT;
+		light.SetLightToCameraOrientation();
+		#else
 		light.type = LIGHT_TYPE::L_DIRECTIONAL;
 		light.direction = view * glm::vec4(-1.0f, -1.0f, -1.0f, 0.0f);
+		#endif
 		light.ambient			= glm::vec3(0.1f);
 		light.diffuse			= glm::vec3(0.8f);
 		light.specular			= glm::vec3(1.0f);
@@ -211,13 +178,49 @@ int main() {
 		modelShader.setVec3("model.ambient", YELLOW_LIGHT);
 		modelShader.setFloat("model.shininess", 32.0f);
 
+		// BACKPACK
 		model = glm::mat4(1.0f);
-		model = glm::scale(model, glm::vec3(0.26f));
+		model = glm::scale(model, glm::vec3(0.25f));
+		model = glm::rotate(model, 0.5f * timeElapsed, glm::vec3(0.0f, 1.0f, -1.0f));
+		modelview = view * model;
+
+		modelShader.setMat4("M_modelview", modelview);
+		modelShader.setMat4("M_projection", projection);
+		modelShader.setMat3("M_normal", glm::transpose(glm::inverse(modelview)));
+
+		model = glm::scale(model, glm::vec3(1.1f));
 
 		solidColorShader.use();
 		solidColorShader.setMat4("M_MVP", projection * view * model);
 		setOutlineColor(RGB_STATE, state, currentColor);
 		solidColorShader.setVec3("color", currentColor);
+
+		backpack.Draw(modelShader, "model", solidColorShader);
+
+		// TEST CUBE
+		modelShader.use();
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(2.0f, 2.0f, -1.0f));
+		model = glm::scale(model, glm::vec3(0.2f));
+		model = glm::rotate(model, 0.5f * timeElapsed, glm::vec3(0.0f, 1.0f, -1.0f));
+		modelview = view * model;
+
+		modelShader.setMat4("M_modelview", modelview);
+		modelShader.setMat4("M_projection", projection);
+		modelShader.setMat3("M_normal", glm::transpose(glm::inverse(modelview)));
+
+		model = glm::mat4(1.0f);
+		model = glm::translate(model, glm::vec3(2.0f, 2.0f, -1.0f));
+		model = glm::scale(model, glm::vec3(0.22f));
+		model = glm::rotate(model, 0.5f * timeElapsed, glm::vec3(0.0f, 1.0f, -1.0f));
+
+		solidColorShader.use();
+		solidColorShader.setMat4("M_MVP", projection * view * model);
+		setOutlineColor(RGB_STATE, state, currentColor);
+		solidColorShader.setVec3("color", currentColor);
+
+		test.Draw(modelShader, "model", solidColorShader);
 
 #if TEST
 		va.Bind();
@@ -230,10 +233,8 @@ int main() {
 		va.Unbind();
 #endif
 
-		test.Draw(modelShader, "model", solidColorShader);
-		//backpack.Draw(modelShader, "model", solidColorShader);
 		
-		glfwSwapBuffers(window);
+		glfwSwapBuffers(context.window);
 		glfwPollEvents();
 	}
 
@@ -251,6 +252,9 @@ int main() {
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
 	glViewport(0, 0, width, height);
+	context.width = width;
+	context.height = height;
+	context.aspectRatio = (float)width / height;
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
